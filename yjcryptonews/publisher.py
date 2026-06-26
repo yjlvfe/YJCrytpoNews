@@ -233,10 +233,40 @@ def build_post(item: dict, translated: dict) -> str:
         r'ملخص عربي\s*:?\s*', r'ملخص\s*:?\s*',
         r'العربي\s*:?\s*',
         r'رابط\s*:?\s*', r'Read Full Article\s*:?\s*', r'اقرأ المقال\s*:?\s*',
+        # تسريبات تعليمات الـ prompt
+        r'يرجى مراعاة[^.،\n]*', r'مع مراعاة استخدام[^.،\n]*',
+        r'استخدام المصطلحات[^.،\n]*', r'المصطلحات المذكورة[^.،\n]*',
+        r'ملاحظة\s*:?\s*', r'تنبيه\s*:?\s*',
+        r'وفقاً للمصطلحات[^.،\n]*', r'حسب القاموس[^.،\n]*',
     ]
     for pat in _artifacts:
         title_ar = _re.sub(pat, '', title_ar).strip()
         body_ar = _re.sub(pat, '', body_ar).strip()
+
+    # إزالة رموز Markdown (نجوم/شرطات سفلية) التي تسرّبها بعض النماذج
+    for _md in ['**', '__', '*', '`', '#']:
+        title_ar = title_ar.replace(_md, '')
+        body_ar = body_ar.replace(_md, '')
+
+    # إزالة الإنجليزية الملتصقة بالعربي بدون مسافة (مثل: هيدراScaling أو Testnetالشبكة)
+    # تحذف سلسلة الحروف اللاتينية فقط عندما تكون ملاصقة مباشرة لحرف عربي
+    def _strip_glued_latin(text: str) -> str:
+        # لاتيني ملتصق بعربي: احذف اللاتيني
+        text = _re.sub(r'(?<=[\u0600-\u06FF])[A-Za-z]+', '', text)
+        text = _re.sub(r'[A-Za-z]+(?=[\u0600-\u06FF])', '', text)
+        return text
+
+    title_ar = _strip_glued_latin(title_ar).strip()
+    body_ar = _strip_glued_latin(body_ar).strip()
+
+    # تنظيف المسافات الزائدة الناتجة عن حذف الكلمات (مثل "هيدرا ،" أو مسافتين)
+    def _fix_spacing(text: str) -> str:
+        text = _re.sub(r'\s+([،.!؟:;])', r'\1', text)   # مسافة قبل الترقيم
+        text = _re.sub(r'\s{2,}', ' ', text)             # مسافات متعددة
+        return text.strip()
+
+    title_ar = _fix_spacing(title_ar)
+    body_ar = _fix_spacing(body_ar)
     
     # إزالة الحروف الصينية/الكورية/اليابانية
     _cjk = re.compile(
@@ -246,25 +276,40 @@ def build_post(item: dict, translated: dict) -> str:
     title_ar = _cjk.sub('', title_ar).strip()
     body_ar = _cjk.sub('', body_ar).strip()
     
-    # إزالة أي كلمة إنجليزية من العنوان (حماية إضافية)
-    words = title_ar.split()
-    clean_words = []
-    for w in words:
-        # إذا الكلمة إنجليزية بالكامل، احذفها
-        if all(ord(c) < 0x0600 or c.isdigit() or c in '.,!?;:' for c in w if c.isalpha()):
-            continue
-        clean_words.append(w)
-    title_ar = ' '.join(clean_words).strip()
-    
-    # تنظيف الملخص من الكلمات الإنجليزية أيضاً
+    # إزالة الكلمات الإنجليزية الحقيقية فقط — مع الحفاظ على الأرقام والأسعار ورموز العملات
+    # رموز العملات المعروفة المسموح بها (تبقى كما هي لأنها معروفة عالمياً)
+    _ALLOWED_TICKERS = {
+        "BTC", "ETH", "USDT", "USDC", "SOL", "XRP", "ADA", "DOGE", "AVAX", "DOT",
+        "LINK", "UNI", "AAVE", "COMP", "MKR", "LDO", "BNB", "USD", "EUR", "GBP",
+        "JPY", "CNY", "ETF", "DEFI", "DAO", "NFT", "AI", "SEC", "FED", "CPI",
+        "GDP", "TVL", "APY", "APR", "DEX", "CEX", "POS", "POW", "L1", "L2",
+        "SUI", "TON", "TRX", "LTC", "BCH", "ATOM", "NEAR", "OP", "ARB", "PEPE",
+        "SHIB", "WLD", "INJ", "RNDR", "FET", "TAO",
+    }
+
+    def _keep_word(w: str) -> bool:
+        # 1) فيها رقم؟ (سعر/نسبة/مبلغ مثل 0.16 أو 40 أو 5% أو $0.16) → احتفظ بها
+        if any(c.isdigit() for c in w):
+            return True
+        # 2) فيها أي حرف عربي؟ → احتفظ بها
+        if any('\u0600' <= c <= '\u06FF' for c in w):
+            return True
+        # 3) رمز عملة/مصطلح معروف؟ (بعد إزالة الترقيم) → احتفظ به
+        stripped = w.strip(".,!?؟;:()[]{}«»\"'$£€¥%").upper()
+        if stripped in _ALLOWED_TICKERS:
+            return True
+        # 4) رمز عملة/علامة فقط بدون أحرف؟ ($ £ € % …) → احتفظ
+        if not any(c.isalpha() for c in w):
+            return True
+        # غير ذلك = كلمة إنجليزية حقيقية → احذف
+        return False
+
+    # تنظيف العنوان
+    title_ar = ' '.join(w for w in title_ar.split() if _keep_word(w)).strip()
+
+    # تنظيف الملخص بنفس المنطق
     if body_ar:
-        body_words = body_ar.split()
-        clean_body = []
-        for w in body_words:
-            if all(ord(c) < 0x0600 or c.isdigit() or c in '.,!؟;:' for c in w if c.isalpha()):
-                continue
-            clean_body.append(w)
-        body_ar = ' '.join(clean_body).strip()
+        body_ar = ' '.join(w for w in body_ar.split() if _keep_word(w)).strip()
     
     # إذا لم يتبق عنوان عربي بعد التنظيف، ارفض
     if not title_ar or sum(1 for c in title_ar if '\u0600' <= c <= '\u06FF') < 3:

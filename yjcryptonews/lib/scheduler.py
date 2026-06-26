@@ -491,9 +491,18 @@ class HourlySingleArticleScheduler:
                 logger.warning("❌ Content too short after all fallbacks")
                 return False
         
-        # Cap body to 300 chars max
-        if len(body_ar) > 300:
-            body_ar = body_ar[:297] + "..."
+        # Cap body to ~600 chars max — but cut at a SENTENCE boundary, never mid-word.
+        MAX_BODY = 600
+        if len(body_ar) > MAX_BODY:
+            cut = body_ar[:MAX_BODY]
+            # find last sentence end (. ! ؟ newline) to avoid chopping mid-sentence
+            last_end = max(cut.rfind("."), cut.rfind("!"), cut.rfind("؟"), cut.rfind("\n"))
+            if last_end >= 200:
+                body_ar = cut[:last_end + 1].strip()
+            else:
+                # no sentence break found — cut at last space to avoid mid-word
+                last_space = cut.rfind(" ")
+                body_ar = (cut[:last_space] if last_space >= 200 else cut).strip()
         
         # Final validation - must have Arabic content
         arabic_chars = sum(1 for c in body_ar if '\u0600' <= c <= '\u06FF')
