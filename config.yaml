@@ -1,0 +1,458 @@
+app:
+  name: "YJCryptoNews v3.0"
+  environment: "development"
+  debug: true
+  timezone: "UTC"
+
+database:
+  host: "postgres"
+  port: 5432
+  username: "yjcryptonews"
+  password: "yjcryptonews_dev"
+  name: "yjcryptonews"
+  pool_size: 10
+  max_overflow: 20
+
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+  password: ""
+  max_connections: 50
+
+ai:
+  # Enable AI processing pipeline
+  enable_processing: true
+  
+  # Multi-provider fallback chain (verified working 2026-06-17)
+  providers:
+    # PRIMARY: Groq - fastest (150ms), all models work, includes Arabic model
+    - name: "groq"
+      base_url: "https://api.groq.com/openai/v1"
+      api_key_env: "GROQ_API_KEY"
+      models:
+        translation: "llama-3.3-70b-versatile"
+        summarization: "llama-3.1-8b-instant"
+        enrichment: "llama-3.3-70b-versatile"
+        arabic_specialist: "allam-2-7b"
+      max_tokens:
+        translation: 4096
+        summarization: 1024
+        enrichment: 8192
+      temperature:
+        translation: 0.2
+        summarization: 0.1
+        enrichment: 0.3
+      timeout: 30
+      rate_limit_rpm: 1000
+      enabled: true
+
+    # SECONDARY: NVIDIA NIM - good speed (365ms), 121 models, good Arabic
+    - name: "nvidia_nim"
+      base_url: "https://integrate.api.nvidia.com/v1"
+      api_key_env: "NVIDIA_API_KEY"
+      models:
+        translation: "meta/llama-3.1-70b-instruct"
+        summarization: "meta/llama-3.1-8b-instruct"
+        enrichment: "nvidia/nemotron-3-ultra-550b-a55b"
+      max_tokens:
+        translation: 4096
+        summarization: 1024
+        enrichment: 8192
+      temperature:
+        translation: 0.2
+        summarization: 0.1
+        enrichment: 0.3
+      timeout: 30
+      rate_limit_rpm: 600
+      enabled: true
+
+    # TERTIARY: OpenRouter - most models (337), deepseek available
+    - name: "openrouter"
+      base_url: "https://openrouter.ai/api/v1"
+      api_key_env: "OPENROUTER_API_KEY"
+      models:
+        translation: "deepseek/deepseek-chat"
+        summarization: "nvidia/nemotron-3-ultra-550b-a55b:free"
+        enrichment: "deepseek/deepseek-chat"
+      max_tokens:
+        translation: 4096
+        summarization: 1024
+        enrichment: 8192
+      temperature:
+        translation: 0.2
+        summarization: 0.1
+        enrichment: 0.3
+      timeout: 45
+      rate_limit_rpm: 200
+      enabled: true
+
+    # QUATERNARY: Mistral - works but slow (5281ms)
+    - name: "mistral"
+      base_url: "https://api.mistral.ai/v1"
+      api_key_env: "MISTRAL_API_KEY"
+      models:
+        translation: "mistral-small-latest"
+        summarization: "open-mistral-nemo"
+        enrichment: "mistral-small-latest"
+      max_tokens:
+        translation: 4096
+        summarization: 1024
+        enrichment: 8192
+      temperature:
+        translation: 0.2
+        summarization: 0.1
+        enrichment: 0.3
+      timeout: 60
+      rate_limit_rpm: 100
+      enabled: true
+
+  # Legacy single provider config (for backward compat)
+  provider: "groq"
+  base_url: "https://api.groq.com/openai/v1"
+  models:
+    primary: "llama-3.3-70b-versatile"
+    fallback: "llama-3.1-8b-instant"
+    translation: "llama-3.3-70b-versatile"
+    summarization: "llama-3.1-8b-instant"
+    enrichment: "llama-3.3-70b-versatile"
+  max_tokens:
+    translation: 4096
+    summarization: 1024
+    enrichment: 8192
+  temperature:
+    translation: 0.2
+    summarization: 0.1
+    enrichment: 0.3
+
+data_acquisition:
+  rss:
+    timeout: 30
+    max_concurrent: 20
+    user_agent: "YJCryptoNews/3.0 (+https://yjcryptonews.example.com)"
+  scraping:
+    timeout: 60
+    max_concurrent: 10
+    use_playwright: true
+    rate_limit: 2  # requests per second per domain
+  monitoring:
+    google_alerts_enabled: true
+    check_interval_minutes: 15
+
+quality_engine:
+  scoring:
+    weights:
+      source_trust: 0.25
+      content_relevance: 0.20
+      readability: 0.10
+      freshness: 0.10
+      uniqueness: 0.15
+      completeness: 0.10
+      sentiment_balance: 0.10
+    thresholds:
+      minimum_publish_score: 60
+      high_quality_score: 80
+      auto_reject_below: 40
+  fact_check:
+    min_sources_required: 2
+    min_source_trust: 70
+    cross_reference_enabled: true
+    blockchain_verification_enabled: false
+  deduplication:
+    stage2_fuzzy_threshold: 0.65
+    stage3_semantic_threshold: 0.55
+    stage4_key_facts_threshold: 0.50
+    embedding_model: paraphrase-multilingual-MiniLM-L12-v2
+
+publishing:
+  telegram:
+    bot_token: ""  # Set via environment variable
+    max_posts_per_hour: 8
+    min_interval_minutes: 15
+    burst_limit: 3
+    global_max_per_hour: 30
+    prioritize_urgent: true
+  queues:
+    urgent:
+      max_age_minutes: 5
+      publish_immediately: true
+      retry_strategy: "exponential_backoff"
+      max_retries: 3
+    standard:
+      max_age_minutes: 30
+      publish_schedule: "optimal_timeslot"
+      bundle_similar: true
+      max_retries: 5
+  schedule:
+    optimal_hours: [9, 13, 17, 21]  # UTC
+    timezone: "UTC"
+  
+# ============================================================
+# NEW: Daily Publishing Schedule (24 posts/day distributed)
+# ============================================================
+daily_publishing:
+  enabled: true
+  total_posts_per_day: 24
+  # Distribution across optimal hours (4 slots × 6 posts each)
+  distribution_slots:
+    - hour: 9   # 09:00 UTC - Morning
+      posts: 6
+      description: "صباحي - أخبار الليل والأولويات"
+    - hour: 13  # 13:00 UTC - Midday
+      posts: 6
+      description: "ظهري - متابعة الأسواق الآسيوية/الأوروبية"
+    - hour: 17  # 17:00 UTC - Evening
+      posts: 6
+      description: "مسائي - افتتاح الأسواق الأمريكية"
+    - hour: 21  # 21:00 UTC - Night
+      posts: 6
+      description: "ليلي - إغلاق الأسواق، ملخص اليوم"
+  # Spreading within each slot
+  min_interval_minutes: 10
+  max_posts_per_slot: 6
+  # Quality thresholds for scheduled posts
+  minimum_score: 45
+  prefer_fresh: true  # Prefer articles < 4 hours old
+
+# ============================================================
+# NEW: Urgent/Breaking News Detection
+# ─── Urgent Detection (Updated for better RSS date handling) ───
+urgent_detection:
+  enabled: true
+  check_interval_minutes: 60  # Every hour
+  # Minimum sources reporting same story to consider "breaking"
+  min_sources_for_breaking: 3
+  # Time window to look for cross-source correlation
+  correlation_window_hours: 24  # Increased from 2 to 24 hours for RSS feeds
+  # Urgent keywords that boost priority
+  urgent_keywords:
+    - "breaking"
+    - "urgent" 
+    - "alert"
+    - "crash"
+    - "hack"
+    - "exploit"
+    - "etf approval"
+    - "sec decision"
+    - "regulation"
+    - "ban"
+    - "halving"
+    - "fork"
+    - "upgrade"
+    - "mainnet launch"
+    - "liquidation"
+    - "bankruptcy"
+    - "arrest"
+    - "investigation"
+    - "lawsuit"
+    - "emergency"
+  # Minimum quality score for urgent
+  minimum_score: 50
+  # Max age for urgent news
+  max_age_hours: 24
+  # Auto-publish urgent immediately
+  auto_publish_urgent: true
+  # Channels for urgent (all channels)
+  use_all_channels: true
+
+sources:
+  rss_feeds:
+    - name: "CoinDesk"
+      url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      type: "rss"
+      trust_score: 95
+    - name: "Decrypt"
+      url: "https://decrypt.co/feed"
+      type: "rss"
+      trust_score: 90
+    - name: "The Block"
+      url: "https://www.theblock.co/rss.xml"
+      type: "rss"
+      trust_score: 95
+    - name: "Blockworks"
+      url: "https://blockworks.co/feed"
+      type: "rss"
+      trust_score: 90
+    - name: "Binance Blog"
+      url: "https://blog.binance.com/en/rss.xml"
+      type: "rss"
+      trust_score: 90
+    - name: "NewsBTC"
+      url: "https://www.newsbtc.com/feed/"
+      type: "rss"
+      trust_score: 75
+    - name: "CryptoNews"
+      url: "https://cryptonews.com/news/feed/"
+      type: "rss"
+      trust_score: 75
+    - name: "U.Today"
+      url: "https://u.today/rss"
+      type: "rss"
+      trust_score: 70
+
+scraping_targets:
+    # NOTE: all scraping targets disabled 2026-06-26 — every endpoint returns
+    # 403/404/429 or empty (selectors stale). RSS + API collectors cover the
+    # same publishers. Re-enable individually after fixing selectors/endpoint.
+    - name: "Binance Research"
+      url: "https://research.binance.com/en"
+      type: "scraping"
+      trust_score: 90
+      enabled: false
+      selectors:
+        article: ".article-card"
+        title: "h3 a"
+        link: "h3 a@href"
+        date: ".date"
+    - name: "Messari Research"
+      url: "https://messari.io/research"
+      type: "scraping"
+      trust_score: 95
+      enabled: false
+      selectors:
+        article: ".research-item"
+        title: "h3 a"
+        link: "h3 a@href"
+        date: ".date"
+    - name: "The Block"
+      url: "https://www.theblock.co/latest"
+      type: "scraping"
+      trust_score: 95
+      enabled: false
+      selectors:
+        article: ".article-card"
+        title: "h3 a"
+        link: "h3 a@href"
+        date: ".timestamp"
+    - name: "Blockworks"
+      url: "https://blockworks.co/news"
+      type: "scraping"
+      trust_score: 90
+      enabled: false
+      selectors:
+        article: ".post-card"
+        title: "h2 a"
+        link: "h2 a@href"
+        date: ".post-date"
+    - name: "Chainalysis Blog"
+      url: "https://blog.chainalysis.com"
+      type: "scraping"
+      trust_score: 90
+      enabled: false
+      selectors:
+        article: ".post-item"
+        title: ".post-title a"
+        link: ".post-title a@href"
+        date: ".post-date"
+    - name: "Glassnode Insights"
+      url: "https://glassnode.com/insights"
+      type: "scraping"
+      trust_score: 90
+      enabled: false
+      selectors:
+        article: ".insight-card"
+        title: "h3 a"
+        link: "h3 a@href"
+        date: ".date"
+    - name: "Ethereum Blog"
+      url: "https://blog.ethereum.org"
+      type: "scraping"
+      trust_score: 95
+      enabled: false
+      selectors:
+        article: ".post-preview"
+        title: "h2 a"
+        link: "h2 a@href"
+        date: ".post-date"
+    - name: "Delphi Digital"
+      url: "https://www.delphidigital.io/research"
+      type: "scraping"
+      trust_score: 90
+      enabled: false
+      selectors:
+        article: ".research-card"
+        title: "h3 a"
+        link: "h3 a@href"
+        date: ".date"
+
+monitoring_services:
+  google_alerts:
+    queries:
+      - "Bitcoin OR BTC"
+      - "Ethereum OR ETH"
+      - "cryptocurrency regulation"
+      - "DeFi hack OR exploit"
+      - "ETF Bitcoin OR Ethereum"
+    check_interval_minutes: 30
+  talkwalker:
+    enabled: false
+    api_key: ""
+  mention:
+    enabled: false
+    api_key: ""
+
+translation:
+  style: "professional_arabic_financial"
+  preserve_technical_terms: true
+  terms_glossary:
+    "Bitcoin": "بيتكوين"
+    "Ethereum": "إيثيريوم"
+    "blockchain": "بلوك تشين"
+    "smart contract": "عقد ذكي"
+    "DeFi": "دي فاي"
+    "NFT": "إن إف تي"
+    "Web3": "ويب 3"
+    "mining": "تعدين"
+    "staking": "ستيكينغ"
+    "yield farming": "زراعة العائد"
+    "liquidity": "سيولة"
+    "volatility": "تقلب"
+    "bull market": "سوق صاعد"
+    "bear market": "سوق هابط"
+    "altcoin": "عملة بديلة"
+    "stablecoin": "عملة مستقرة"
+    "wallet": "محافظ"
+    "exchange": "منصة تداول"
+    "token": "توكن"
+    "coin": "عملة"
+    "hash rate": "معدل الهاش"
+    "difficulty": "صعوبة"
+    "halving": "تنصيف"
+    "fork": "شوكة"
+    "consensus": "إجماع"
+    "validator": "مصادق"
+    "node": "عقدة"
+    "gas": "غاز"
+    "gwei": "جيجاوي"
+
+summarization:
+  max_chars: 250
+  key_points_count: 3
+  preserve_core_message: true
+
+enrichment:
+  add_market_context: true
+  add_historical_comparison: true
+  add_related_coins: true
+  market_data_sources:
+    - "coingecko"
+    - "coinmarketcap"
+
+logging:
+  level: "INFO"
+  format: "json"
+  file: "/usr/local/lib/YJCryptoNews/logs/yjcryptonews.log"
+  max_size_mb: 100
+  backup_count: 5
+
+monitoring:
+  prometheus_port: 9090
+  sentry_dsn: ""
+  health_check_interval: 60
+
+scheduler:
+  fetch_interval_minutes: 15
+  quality_check_interval_minutes: 30
+  publish_check_interval_minutes: 5
+  cleanup_interval_hours: 24
+  analytics_interval_hours: 1

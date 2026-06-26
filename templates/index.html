@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 CryptoBot - لوحة التحكم</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f0f1a; color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        
+        header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 30px; border-radius: 16px;
+            margin-bottom: 24px; border: 1px solid #2a2a4a;
+        }
+        header h1 { font-size: 28px; color: #f7931a; }
+        header p { color: #888; margin-top: 8px; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        
+        .card {
+            background: #1a1a2e; border-radius: 12px;
+            padding: 20px; border: 1px solid #2a2a4a;
+        }
+        .card h2 { font-size: 16px; color: #f7931a; margin-bottom: 16px; }
+        
+        .stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a2a4a; }
+        .stat:last-child { border: none; }
+        .stat-label { color: #888; }
+        .stat-value { color: #fff; font-weight: bold; }
+        
+        .channel-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-radius: 8px; margin-bottom: 8px;
+            background: #0f0f1a; border: 1px solid #2a2a4a;
+        }
+        .channel-item .name { flex: 1; }
+        .channel-item .status { font-size: 12px; padding: 4px 12px; border-radius: 20px; }
+        .status-active { background: #1a3a1a; color: #4caf50; }
+        .status-inactive { background: #3a1a1a; color: #f44336; }
+        
+        .toggle-btn {
+            background: none; border: 1px solid #555; color: #ccc;
+            padding: 6px 16px; border-radius: 6px; cursor: pointer;
+            font-size: 13px; transition: 0.2s;
+        }
+        .toggle-btn:hover { background: #2a2a4a; }
+        
+        .log-item {
+            padding: 8px 0; border-bottom: 1px solid #222;
+            font-size: 13px; color: #aaa;
+        }
+        .log-item .time { color: #666; font-size: 11px; }
+        .log-item.success { border-right: 3px solid #4caf50; padding-right: 10px; }
+        .log-item.failed { border-right: 3px solid #f44336; padding-right: 10px; }
+        
+        .btn-primary {
+            background: #f7931a; color: #000; border: none;
+            padding: 10px 24px; border-radius: 8px; cursor: pointer;
+            font-weight: bold; font-size: 14px; transition: 0.2s;
+        }
+        .btn-primary:hover { background: #ffa940; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; color: #888; font-size: 13px; margin-bottom: 4px; }
+        .form-group input {
+            width: 100%; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid #333; background: #0f0f1a; color: #fff;
+            font-size: 14px;
+        }
+        .inline-form { display: flex; gap: 8px; align-items: end; }
+        
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 12px 24px; border-radius: 8px;
+            display: none; z-index: 999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 CryptoBot</h1>
+            <p>نظام نشر أخبار الكريبتو — لوحة التحكم</p>
+            <p style="margin-top: 8px; color: #666; font-size: 13px;">{{ now }}</p>
+        </header>
+
+        <div class="grid">
+            <!-- الإعدادات -->
+            <div class="card">
+                <h2>⚙️ الإعدادات</h2>
+                <div class="form-group">
+                    <label>وقت الدورة (دقائق)</label>
+                    <input type="number" id="interval" value="{{ cfg.scheduler.interval_minutes }}" min="1">
+                </div>
+                <div class="form-group">
+                    <label>نافذة الأخبار (ساعات)</label>
+                    <input type="number" id="window" value="{{ cfg.scheduler.news_window_hours }}" min="1">
+                </div>
+                <div class="form-group">
+                    <label>الحد الأقصى للمنشورات/دورة</label>
+                    <input type="number" id="max_posts" value="{{ cfg.publisher.max_posts_per_cycle }}" min="1">
+                </div>
+                <div class="form-group">
+                    <label>تأخير بين المنشورات (ثواني)</label>
+                    <input type="number" id="delay" value="{{ cfg.publisher.delay_between_posts }}" min="0">
+                </div>
+                <button class="btn-primary" onclick="saveConfig()">💾 حفظ الإعدادات</button>
+            </div>
+
+            <!-- القنوات -->
+            <div class="card">
+                <h2>📢 القنوات</h2>
+                <div class="inline-form" style="margin-bottom: 16px;">
+                    <input type="text" id="new_channel_id" placeholder="chat_id (مثال: @channel)">
+                    <input type="text" id="new_channel_title" placeholder="الاسم (اختياري)">
+                    <button class="btn-primary" onclick="addChannel()">+ إضافة</button>
+                </div>
+                <div id="channels-list">
+                    {% for ch in channels %}
+                    <div class="channel-item">
+                        <div class="name">
+                            <strong>{{ ch.title or ch.username or ch.chat_id }}</strong>
+                            <br><small style="color:#666">{{ ch.chat_id }}</small>
+                        </div>
+                        <span class="status {% if ch.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if ch.is_active %}🟢 نشط{% else %}🔴 متوقف{% endif %}
+                        </span>
+                        <button class="toggle-btn" onclick="toggleChannel('{{ ch.chat_id }}')">
+                            {% if ch.is_active %}⏸ إيقاف{% else %}▶ تشغيل{% endif %}
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% if not channels %}
+                    <p style="color: #666; text-align: center; padding: 20px;">لا توجد قنوات مضافة</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- التحكم -->
+            <div class="card">
+                <h2>🎮 التحكم</h2>
+                <button class="btn-primary" id="runBtn" onclick="runCycle()">▶️ تشغيل دورة يدوية</button>
+                <pre id="cycleOutput" style="margin-top: 12px; background: #0a0a15; padding: 12px; border-radius: 8px; font-size: 12px; max-height: 200px; overflow-y: auto; color: #4caf50; display: none;"></pre>
+            </div>
+
+            <!-- سجل النشر -->
+            <div class="card">
+                <h2>📋 آخر المنشورات</h2>
+                <div id="recent-log">
+                    {% for log in recent %}
+                    <div class="log-item {{ log.status }}">
+                        <span class="time">{{ log.created_at[:19] }}</span><br>
+                        {{ log.item_title[:60] }}
+                        {% if log.channel_name %}
+                        <span style="color: #666;"> → {{ log.channel_name }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% if not recent %}
+                    <p style="color: #666; text-align: center; padding: 20px;">لا توجد منشورات بعد</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        async function saveConfig() {
+            const data = {
+                interval: parseInt(document.getElementById('interval').value),
+                window_hours: parseInt(document.getElementById('window').value),
+                max_posts: parseInt(document.getElementById('max_posts').value),
+                delay: parseInt(document.getElementById('delay').value),
+            };
+            const resp = await fetch('/api/config/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await resp.json();
+            if (result.ok) showToast('✅ تم حفظ الإعدادات');
+            else showToast('❌ فشل الحفظ');
+        }
+
+        async function toggleChannel(chatId) {
+            const resp = await fetch('/api/channels/toggle', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chat_id: chatId})
+            });
+            location.reload();
+        }
+
+        async function addChannel() {
+            const chatId = document.getElementById('new_channel_id').value.trim();
+            const title = document.getElementById('new_channel_title').value.trim();
+            if (!chatId) { showToast('❌ أدخل chat_id'); return; }
+            const resp = await fetch('/api/channels/add', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({chat_id: chatId, title: title})
+            });
+            if (resp.ok) location.reload();
+        }
+
+        async function runCycle() {
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('cycleOutput').style.display = 'block';
+            document.getElementById('cycleOutput').textContent = 'جاري التشغيل...\n';
+            
+            const resp = await fetch('/api/run-cycle', {method: 'POST'});
+            const data = await resp.json();
+            
+            if (data.ok) {
+                document.getElementById('cycleOutput').textContent = data.output || '✅ تم';
+            } else {
+                document.getElementById('cycleOutput').textContent = '❌ ' + (data.error || 'خطأ');
+            }
+            document.getElementById('runBtn').disabled = false;
+            setTimeout(() => location.reload(), 3000);
+        }
+    </script>
+</body>
+</html>

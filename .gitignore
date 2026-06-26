@@ -1,0 +1,54 @@
+# 🔑 Secrets — never commit these
+.env
+*.key
+**/secrets.yaml
+
+# 🐍 Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# 🗄️ Database
+*.db
+*.db-*
+*.sqlite
+
+# 📝 Logs
+*.log
+/logs/
+/var/log/YJCryptoNews/
+
+# 🖼️ OS files
+.DS_Store
+Thumbs.db
+
+# 🧪 IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 🔄 Backup files
+*.bak
+*.bak_*
+*.swp
+*.swo
+
+# 📜 Old scripts (hidden files)
+.[!.]*.py
+!.env.example
+!.gitignore
+
+# 📂 State files
+.last_checked_post*
+.daily_queue.json
+
+# 📋 Internal reports
+report_fix/
+static/
+

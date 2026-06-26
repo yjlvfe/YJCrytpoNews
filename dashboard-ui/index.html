@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>HermesBot - لوحة التحكم</title>
+<style>
+/*═══════════════════════════════════════════════
+  DESIGN TOKENS
+═══════════════════════════════════════════════*/
+:root{
+  --bg:#0B1020;
+  --card:#11182D;
+  --card-h:#161E35;
+  --side:#0D1428;
+  --bd:rgba(255,255,255,0.06);
+  --accent:#F59E0B;
+  --accent-bg:rgba(245,158,11,0.12);
+  --success:#22C55E;
+  --success-bg:rgba(34,197,94,0.1);
+  --error:#EF4444;
+  --error-bg:rgba(239,68,68,0.1);
+  --text:#fff;--text2:rgba(255,255,255,0.55);--text3:rgba(255,255,255,0.35);
+  --r-sm:6px;--r-md:10px;--r-lg:14px
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:'Segoe UI','Cairo',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100dvh;overflow-x:hidden
+}
+
+/*═══════════════════════════════════════════════
+  SIDEBAR — DESKTOP ONLY (≥768px)
+═══════════════════════════════════════════════*/
+.sidebar{
+  position:fixed;top:0;right:0;width:210px;height:100dvh;
+  background:var(--side);border-left:1px solid var(--bd);
+  z-index:100;display:flex;flex-direction:column;padding:20px 12px
+}
+.sb-h{display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:20px}
+.sb-i{width:32px;height:32px;border-radius:var(--r-sm);background:linear-gradient(135deg,var(--accent),#D97706);display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;font-weight:700;flex-shrink:0}
+.sb-n{font-size:14px;font-weight:700}
+.sb-v{font-size:9px;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 7px;border-radius:20px;margin-right:auto}
+.nv-s{font-size:10px;color:var(--text3);padding:16px 12px 6px;font-weight:600;letter-spacing:0.4px}
+.nv{display:flex;flex-direction:column;gap:2px}
+.nv-b{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-sm);
+  color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;border:none;
+  background:none;width:100%;text-align:right;font-family:inherit
+}
+.nv-b:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.nv-b.on{background:var(--accent-bg);color:var(--accent);font-weight:600}
+
+/*═══════════════════════════════════════════════
+  MOBILE MENU — Full screen overlay (<768px)
+═══════════════════════════════════════════════*/
+.hamburger,.mobile-menu,.mm-overlay{display:none}
+@media(max-width:767px){
+  .sidebar{display:none}
+  .hamburger{
+    display:flex;align-items:center;justify-content:center;
+    position:fixed;top:10px;left:auto;right:10px;z-index:300;
+    width:42px;height:42px;border-radius:var(--r-sm);
+    background:var(--card);border:1px solid var(--bd);
+    color:var(--text);font-size:22px;cursor:pointer;font-family:inherit
+  }
+  .mm-overlay{
+    display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.65);z-index:310
+  }
+  .mm-overlay.s{display:block}
+  .mobile-menu{
+    display:flex;flex-direction:column;
+    position:fixed;top:0;right:0;width:260px;height:100dvh;
+    background:var(--side);border-left:1px solid var(--bd);z-index:320;
+    padding:20px 14px;
+    transform:translateX(260px);
+    transition:transform 0.2s ease
+  }
+  .mobile-menu.s{transform:translateX(0)}
+  .mm-h{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;padding:8px 4px
+  }
+  .mm-close{
+    width:34px;height:34px;border-radius:var(--r-sm);
+    background:rgba(255,255,255,0.08);border:none;
+    color:var(--text);font-size:16px;cursor:pointer;font-family:inherit
+  }
+}
+
+/*═══════════════════════════════════════════════
+  MAIN CONTENT
+═══════════════════════════════════════════════*/
+.main{margin-right:210px;padding:24px 32px;min-height:100dvh;max-width:1200px}
+@media(max-width:767px){
+  .main{margin-right:0;padding:14px;padding-top:62px;max-width:100%}
+}
+@media(max-width:480px){
+  .main{padding:10px;padding-top:58px}
+}
+
+/*═══════════════════════════════════════════════
+  PAGE HEADER
+═══════════════════════════════════════════════*/
+.ph{margin-bottom:16px}
+.ph-t{font-size:20px;font-weight:700;margin-bottom:2px}
+.ph-s{font-size:12px;color:var(--text2)}
+@media(max-width:480px){.ph-t{font-size:17px}}
+
+/*═══════════════════════════════════════════════
+  STATS GRID (2 cols → 1 col on phone)
+═══════════════════════════════════════════════*/
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;min-width:0}
+.sg > *{min-width:0}
+@media(max-width:480px){.sg{grid-template-columns:1fr}}
+.sc{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);
+  padding:14px;min-height:68px
+}
+.sc-v{font-size:20px;font-weight:700}
+.sc-l{font-size:11px;color:var(--text2);margin-top:2px}
+@media(max-width:480px){.sc{padding:12px}.sc-v{font-size:17px}}
+
+/*═══════════════════════════════════════════════
+  CARDS GRID (2 cols → 1 col)
+═══════════════════════════════════════════════*/
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;min-width:0}
+.cg > *{min-width:0}
+@media(max-width:767px){.cg{grid-template-columns:1fr}}
+.cd{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);padding:16px
+}
+@media(max-width:480px){.cd{padding:12px}}
+.cd-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cd-t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.cd-c{font-weight:400;font-size:11px;color:var(--text3)}
+
+/*═══════════════════════════════════════════════
+  FORM
+═══════════════════════════════════════════════*/
+.fg{margin-bottom:8px}
+.fg-l{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;display:block;letter-spacing:0.3px}
+.fg-i{
+  width:100%;padding:8px 10px;background:rgba(255,255,255,0.04);
+  border:1px solid var(--bd);border-radius:var(--r-sm);
+  color:var(--text);font-size:13px;outline:none;font-family:inherit
+}
+.fg-i:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.fr > *{min-width:0}
+@media(max-width:480px){.fr{grid-template-columns:1fr}}
+
+/*═══════════════════════════════════════════════
+  BUTTONS
+═══════════════════════════════════════════════*/
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:9px 16px;border-radius:var(--r-sm);font-size:13px;
+  font-weight:600;border:none;cursor:pointer;font-family:inherit
+}
+.btn-p{background:var(--accent);color:#000}
+.btn-p:disabled{opacity:0.35;cursor:not-allowed}
+.btn-xs{
+  background:var(--error-bg);color:var(--error);border:1px solid rgba(239,68,68,0.2);
+  padding:4px 7px;font-size:11px;border-radius:var(--r-sm);cursor:pointer;font-family:inherit
+}
+.btn-w{width:100%}
+
+/*═══════════════════════════════════════════════
+  CHANNEL
+═══════════════════════════════════════════════*/
+.chi{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;background:rgba(255,255,255,0.02);
+  border:1px solid var(--bd);border-radius:var(--r-sm);
+  margin-bottom:5px;min-height:46px;gap:6px
+}
+.ci{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.ca{
+  width:26px;height:26px;border-radius:var(--r-sm);background:linear-gradient(135deg,var(--card),#1a2340);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0
+}
+.cn{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cid{font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ca2{display:flex;align-items:center;gap:3px;flex-shrink:0}
+
+/* Toggle */
+.tgl{position:relative;width:34px;height:18px;border-radius:9px;border:none;cursor:pointer;padding:0;flex-shrink:0}
+.tgl.on{background:var(--accent)}
+.tgl.off{background:rgba(255,255,255,0.15)}
+.tgl::after{content:'';position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:right 0.12s}
+.tgl.on::after{right:18px}.tgl.off::after{right:2px}
+
+/* Badge */
+.bdg{display:inline-flex;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
+.bdg-g{background:var(--success-bg);color:var(--success)}
+.bdg-r{background:var(--error-bg);color:var(--error)}
+.bdg-y{background:rgba(245,158,11,0.1);color:var(--accent)}
+
+/*═══════════════════════════════════════════════
+  POST LIST
+═══════════════════════════════════════════════*/
+.pl{display:flex;flex-direction:column;gap:3px}
+.pc{
+  display:flex;align-items:center;gap:6px;padding:7px 10px;
+  background:rgba(255,255,255,0.02);border:1px solid var(--bd);
+  border-radius:var(--r-sm);min-height:40px
+}
+.ps{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.ps.g{background:var(--success)}.ps.r{background:var(--error)}.ps.y{background:var(--accent)}
+.pd{flex:1;min-width:0}
+.pt{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pm{display:flex;gap:5px;margin-top:1px;font-size:10px;color:var(--text3);flex-wrap:wrap}
+
+/*═══════════════════════════════════════════════
+  MISC
+═══════════════════════════════════════════════*/
+.em{text-align:center;padding:24px 16px;color:var(--text3)}
+.em-i{font-size:30px;margin-bottom:6px;opacity:0.3}
+.em-t{font-size:13px;font-weight:500;color:var(--text2)}
+.tc{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  z-index:999;display:flex;flex-direction:column;gap:5px;pointer-events:none
+}
+.tt{padding:7px 18px;border-radius:var(--r-sm);font-size:12px;animation:ti 0.2s ease}
+.tt.ok{background:rgba(34,197,94,0.9);color:#fff}
+.tt.er{background:rgba(239,68,68,0.9);color:#fff}
+@keyframes ti{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.sk{
+  background:linear-gradient(90deg,var(--card) 25%,var(--card-h) 50%,var(--card) 75%);
+  background-size:200% 100%;animation:sk 1.4s ease infinite;border-radius:var(--r-sm)
+}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.ep{display:flex;align-items:center;justify-content:center;min-height:50vh;flex-direction:column;text-align:center;padding:32px}
+#out{display:none;margin-top:8px;background:rgba(0,0,0,0.3);padding:7px 10px;border-radius:var(--r-sm);font-size:11px;color:#4caf50;max-height:80px;overflow:auto}
+.sl{display:flex;flex-direction:column;gap:3px}
+.si{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;
+  background:rgba(255,255,255,0.02);border-radius:var(--r-sm)
+}
+.sn{
+  width:18px;height:18px;border-radius:4px;background:var(--accent-bg);
+  color:var(--accent);display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:9px;flex-shrink:0
+}
+.slbl{flex:1;font-size:12px;color:var(--text2)}
+.stm{font-size:10px;color:var(--text3)}
+.sg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.sg2 > *{min-width:0}
+@media(max-width:480px){.sg2{grid-template-columns:1fr}}
+.si2{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:rgba(255,255,255,0.02);
+  border:1px solid var(--bd);border-radius:var(--r-sm)
+}
+.sl2{font-size:12px;color:var(--text2)}
+.sv2{font-size:12px;font-weight:600}
+.ss{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);
+  padding:16px;margin-bottom:14px
+}
+@media(max-width:480px){.ss{padding:12px}}
+.ss-t{font-size:15px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.ss-d{font-size:11px;color:var(--text3);margin-bottom:12px}
+.wr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid var(--bd)
+}
+.wr:last-child{border-bottom:none}
+.wl{font-size:13px}
+.wv{font-size:13px;color:var(--text2);text-align:left;direction:ltr}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -- DESKTOP -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-h"><div class="sb-i">H</div><span class="sb-n">HermesBot</span><span class="sb-v">v2</span></div>
+  <div class="nv" id="nav">
+    <div class="nv-s">التنقل</div>
+    <button class="nv-b on" data-p="dash"><span>📊</span> لوحة التحكم</button>
+    <button class="nv-b" data-p="ch"><span>📢</span> القنوات</button>
+    <button class="nv-b" data-p="cfg"><span>⚙️</span> الإعدادات</button>
+    <button class="nv-b" data-p="sys"><span>🖥</span> النظام</button>
+  </div>
+</aside>
+
+<!-- MOBILE: HAMBURGER + OVERLAY MENU -->
+<button class="hamburger" id="hb" onclick="toggleMenu()" aria-label="القائمة">☰</button>
+<div class="mm-overlay" id="mmOverlay" onclick="toggleMenu()"></div>
+<nav class="mobile-menu" id="mobileMenu">
+  <div class="mm-h">
+    <span style="font-weight:700;font-size:15px">📋 القائمة</span>
+    <button class="mm-close" onclick="toggleMenu()">✕</button>
+  </div>
+  <div class="nv" id="mNav">
+    <button class="nv-b on" data-p="dash"><span>📊</span> لوحة التحكم</button>
+    <button class="nv-b" data-p="ch"><span>📢</span> القنوات</button>
+    <button class="nv-b" data-p="cfg"><span>⚙️</span> الإعدادات</button>
+    <button class="nv-b" data-p="sys"><span>🖥</span> النظام</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main" id="main"></main>
+<div class="tc" id="tc"></div>
+
+<script>
+/*══════════ STATE ══════════*/
+var _p='dash',_D=null,_L=false;
+
+/*══════════ MOBILE MENU ══════════*/
+function toggleMenu(){
+  var m=document.getElementById('mobileMenu'),o=document.getElementById('mmOverlay'),h=document.getElementById('hb');
+  m.classList.toggle('s');o.classList.toggle('s');
+  h.textContent=m.classList.contains('s')?'✕':'☰'
+}
+function closeMenu(){
+  var m=document.getElementById('mobileMenu'),o=document.getElementById('mmOverlay'),h=document.getElementById('hb');
+  m.classList.remove('s');o.classList.remove('s');h.textContent='☰'
+}
+
+/*══════════ TOAST ══════════*/
+function $t(m,t){
+  var e=document.createElement('div');
+  e.className='tt '+t;e.textContent=m;
+  document.getElementById('tc').appendChild(e);
+  setTimeout(function(){e.remove()},2500)
+}
+
+/*══════════ API ══════════*/
+async function api(url,o){
+  var r=await fetch(url,Object.assign({},o,{headers:Object.assign({'Content-Type':'application/json'},o&&o.headers)}));
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json()
+}
+async function ld(){
+  if(_L)return;_L=true;re();
+  try{
+    var d=await api('/api/dashboard');
+    if(!d.ok)throw new Error(d.error||'API error');
+    _D=d;re()
+  }catch(e){
+    document.getElementById('main').innerHTML=
+      '<div class="ep"><div style="font-size:36px;margin-bottom:8px">⚠️</div>'+
+      '<div style="font-weight:600;margin-bottom:4px">فشل التحميل</div>'+
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">'+es(e.message)+'</div>'+
+      '<button class="btn btn-p" onclick="ld()">🔄 إعادة المحاولة</button></div>'
+  }finally{_L=false}
+}
+
+/*══════════ SKELETON ══════════*/
+function sk(){
+  var s='';
+  for(var i=0;i<4;i++)s+='<div class="sc"><div class="sk" style="height:38px"></div></div>';
+  return '<div class="ph"><div class="ph-t">HermesBot</div><div class="ph-s">جاري التحميل...</div></div>'+
+    '<div class="sg">'+s+'</div>'+
+    '<div class="cg"><div class="cd">'+
+    '<div class="sk" style="height:14px;width:100px;margin-bottom:10px"></div>'+
+    '<div class="sk" style="height:34px;margin-bottom:6px"></div>'+
+    '</div><div class="cd">'+
+    '<div class="sk" style="height:14px;width:120px;margin-bottom:10px"></div>'+
+    '<div class="sk" style="height:32px;margin-bottom:5px"></div>'+
+    '<div class="sk" style="height:32px;margin-bottom:5px"></div>'+
+    '</div></div>'
+}
+
+/*══════════ RENDER ══════════*/
+function re(){
+  var mn=document.getElementById('main');
+  if(!_D){mn.innerHTML=sk();return}
+  var fn={dash:rDash,ch:rCh,cfg:rCfg,sys:rSys};
+  mn.innerHTML=(fn[_p]||rDash)(_D);
+  // Update ALL nav buttons (sidebar + mobile)
+  var all=document.querySelectorAll('.nv-b');
+  for(var i=0;i<all.length;i++)all[i].classList.toggle('on',all[i].dataset.p===_p)
+}
+
+/*══════════ NAV ══════════*/
+document.addEventListener('DOMContentLoaded',function(){
+  ['nav','mNav'].forEach(function(id){
+    document.getElementById(id).addEventListener('click',function(e){
+      var b=e.target.closest('button');
+      if(!b||!b.dataset.p)return;
+      _p=b.dataset.p;
+      closeMenu();
+      re()
+    })
+  })
+});
+
+/*══════════ PAGES ══════════*/
+function rDash(d){
+  var st=d.stats||{},re=d.recent||[];
+  return '<div class="ph"><div class="ph-t">📊 لوحة التحكم</div><div class="ph-s">'+es(d.now||'')+'</div></div>'+
+    '<div class="sg">'+
+      '<div class="sc"><div class="sc-v">'+(st.total_posts||0)+'</div><div class="sc-l">إجمالي المنشورات</div></div>'+
+      '<div class="sc"><div class="sc-v">'+(st.active_channels||0)+' / '+(st.total_channels||0)+'</div><div class="sc-l">القنوات النشطة</div></div>'+
+      '<div class="sc"><div class="sc-v" style="color:var(--success)">🟢 نشط</div><div class="sc-l">حالة البوت</div></div>'+
+      '<div class="sc"><div class="sc-v" style="font-size:14px">'+es(st.last_publish||'—')+'</div><div class="sc-l">آخر نشر</div></div>'+
+    '</div>'+
+    '<div class="cg">'+
+      '<div class="cd"><div class="cd-h"><span class="cd-t">▶ تشغيل يدوي</span></div>'+
+        '<button class="btn btn-p btn-w" id="rb" onclick="run()">▶ دورة يدوية</button><div id="out"></div></div>'+
+      '<div class="cd"><div class="cd-h"><span class="cd-t">📰 آخر المنشورات</span><span class="cd-c">('+re.length+')</span></div>'+
+        (re.length===0
+          ?'<div class="em"><div class="em-i">📭</div><div class="em-t">لا توجد منشورات</div></div>'
+          :'<div class="pl">'+re.map(function(p){
+            var dot=p.status==='success'?'g':p.status==='failed'?'r':'y';
+            var bg=p.status==='success'?'bdg-g':p.status==='failed'?'bdg-r':'bdg-y';
+            var ic=p.status==='success'?'✅':p.status==='failed'?'❌':'⏳';
+            return '<div class="pc"><div class="ps '+dot+'"></div><div class="pd"><div class="pt">'+es(p.title)+'</div><div class="pm"><span>🕐 '+es(p.time)+'</span>'+(p.channel?'<span>📢 '+es(p.channel)+'</span>':'')+'<span class="bdg '+bg+'">'+ic+'</span></div></div></div>'
+          }).join('')+'</div>')+
+      '</div>'+
+    '</div>'
+}
+function rCh(d){
+  var ch=d.channels||[];
+  var list=ch.length===0
+    ?'<div class="em"><div class="em-i">📢</div><div class="em-t">لا توجد قنوات</div></div>'
+    :'<div>'+ch.map(function(c){
+      return '<div class="chi"><div class="ci"><div class="ca">📢</div><div style="min-width:0"><div class="cn">'+es(c.title)+'</div><div class="cid">'+es(c.chat_id)+'</div></div></div><div class="ca2"><span class="bdg '+(c.is_active?'bdg-g':'bdg-r')+'">'+(c.is_active?'نشط':'متوقف')+'</span><button class="tgl '+(c.is_active?'on':'off')+'" onclick="tg(\''+ea(c.chat_id)+'\')"></button><button class="btn-xs" onclick="rm(\''+ea(c.chat_id)+'\')">🗑</button></div></div>'
+    }).join('')+'</div>';
+  return '<div class="ph"><div class="ph-t">📢 القنوات</div><div class="ph-s">'+ch.length+' قناة مضافة</div></div>'+
+    '<div class="cg">'+
+      '<div class="cd"><div class="cd-h"><span class="cd-t">➕ إضافة قناة</span></div>'+
+        '<div class="fr"><div class="fg"><label class="fg-l">المعرف</label><input class="fg-i" id="nid" placeholder="@channel"></div>'+
+        '<div class="fg"><label class="fg-l">الاسم</label><input class="fg-i" id="nti" placeholder="اختياري"></div></div>'+
+        '<button class="btn btn-p btn-w" onclick="add()" style="margin-top:2px">➕ إضافة</button></div>'+
+      '<div class="cd"><div class="cd-h"><span class="cd-t">📢 القنوات</span><span class="cd-c">('+ch.length+')</span></div>'+list+'</div>'+
+    '</div>'
+}
+function rCfg(d){
+  var c=d.config||{},mx=parseInt(c.max_posts)||5,dl=parseInt(c.delay)||720,sch='';
+  for(var i=0;i<mx;i++){var m=Math.round(i*dl/60);sch+='<div class="si"><div class="sn">'+(i+1)+'</div><div class="slbl">بعد '+m+' دقيقة</div><div class="stm">~'+String(m).padStart(2,'0')+':00</div></div>'}
+  return '<div class="ph"><div class="ph-t">⚙️ الإعدادات</div><div class="ph-s">تخصيص إعدادات البوت</div></div>'+
+    '<div class="ss"><div class="ss-t">📡 النشر</div><div class="ss-d">التحكم بعدد المنشورات والتأخير</div>'+
+      '<div class="fr"><div class="fg"><label class="fg-l">منشورات/دورة</label><input class="fg-i" id="mxp" type="number" value="'+mx+'" min="1" max="20"></div>'+
+      '<div class="fg"><label class="fg-l">التأخير (ثانية)</label><input class="fg-i" id="dly" type="number" value="'+dl+'" min="0" max="300"></div></div></div>'+
+    '<div class="ss"><div class="ss-t">⏱ الجدولة</div><div class="ss-d">مدة الدورة ونافذة البحث</div>'+
+      '<div class="fr"><div class="fg"><label class="fg-l">الدورة (دقيقة)</label><input class="fg-i" id="inv" type="number" value="'+(c.interval||60)+'" min="1" max="1440"></div>'+
+      '<div class="fg"><label class="fg-l">النافذة (ساعة)</label><input class="fg-i" id="win" type="number" value="'+(c.window_hours||12)+'" min="1" max="168"></div></div>'+
+      '<div style="margin-top:10px"><div class="cd-h" style="margin-bottom:4px"><span class="cd-t">📅 جدول النشر</span></div><div class="sl">'+sch+'</div></div>'+
+      '<button class="btn btn-p" onclick="sv()" style="margin-top:12px">💾 حفظ الإعدادات</button></div>'+
+    '<div class="ss"><div class="ss-t">🖥 النظام</div>'+
+      '<div class="wr"><span class="wl">الإصدار</span><span class="wv">v2.0</span></div>'+
+      '<div class="wr"><span class="wl">الخادم</span><span class="wv">Flask + Waitress</span></div>'+
+      '<div class="wr"><span class="wl">آخر تحديث</span><span class="wv">'+es(d.now||'—')+'</span></div>'+
+      '<div class="wr"><span class="wl">قاعدة البيانات</span><span class="wv" style="color:var(--success)">🟢 متصلة</span></div></div>'+
+    '<div class="ss"><div class="ss-t">🔒 الأمان</div>'+
+      '<div class="wr"><span class="wl">مفتاح AI API</span><span class="wv">••••••••</span></div>'+
+      '<div class="wr"><span class="wl">مفتاح البوت</span><span class="wv">••••••••</span></div></div>'
+}
+function rSys(d){
+  var st=d.stats||{},c=d.config||{};
+  return '<div class="ph"><div class="ph-t">🖥 حالة النظام</div><div class="ph-s">معلومات تشغيل البوت</div></div>'+
+    '<div class="ss"><div class="ss-t">📊 إحصائيات</div>'+
+      '<div class="sg2">'+
+        '<div class="si2"><span class="sl2">إجمالي المنشورات</span><span class="sv2">'+(st.total_posts||0)+'</span></div>'+
+        '<div class="si2"><span class="sl2">القنوات النشطة</span><span class="sv2">'+(st.active_channels||0)+' / '+(st.total_channels||0)+'</span></div>'+
+        '<div class="si2"><span class="sl2">آخر نشر</span><span class="sv2">'+es(st.last_publish||'—')+'</span></div>'+
+        '<div class="si2"><span class="sl2">حالة البوت</span><span class="sv2" style="color:var(--success)">🟢 نشط</span></div></div></div>'+
+    '<div class="ss"><div class="ss-t">⚙️ الإعدادات الحالية</div>'+
+      '<div class="sg2">'+
+        '<div class="si2"><span class="sl2">الدورة</span><span class="sv2">'+(c.interval||60)+' دقيقة</span></div>'+
+        '<div class="si2"><span class="sl2">منشورات/دورة</span><span class="sv2">'+(c.max_posts||5)+'</span></div>'+
+        '<div class="si2"><span class="sl2">التأخير</span><span class="sv2">'+(c.delay||720)+' ث</span></div>'+
+        '<div class="si2"><span class="sl2">النافذة</span><span class="sv2">'+(c.window_hours||12)+' ساعة</span></div></div></div>'+
+    '<div class="ss"><div class="ss-t">🔧 الصيانة</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-p" onclick="ld()">🔄 تحديث البيانات</button></div></div>'
+}
+
+/*══════════ ACTIONS ══════════*/
+async function run(){
+  var b=document.getElementById('rb'),o=document.getElementById('out');
+  if(!b||!o)return;b.disabled=true;b.innerHTML='⏳ جاري...';o.style.display='block';o.textContent='';
+  try{
+    var d=await api('/api/run-cycle',{method:'POST'});
+    if(d.ok){o.textContent=d.output||'✅';$t('✅ تم','ok')}else{o.textContent='❌ '+(d.error||'');$t('❌ فشل','er')}
+  }catch(e){o.textContent='❌ '+e.message;$t('❌ خطأ','er')}
+  b.disabled=false;b.innerHTML='▶ دورة يدوية';setTimeout(ld,3000)
+}
+async function sv(){
+  try{
+    var d=await api('/api/config/update',{method:'POST',body:JSON.stringify({
+      interval:+document.getElementById('inv').value,max_posts:+document.getElementById('mxp').value,
+      delay:+document.getElementById('dly').value,window_hours:+document.getElementById('win').value
+    })});
+    if(d.ok){$t('✅ تم الحفظ','ok');ld()}else $t('❌ فشل الحفظ','er')
+  }catch(e){$t('❌ خطأ','er')}
+}
+async function add(){
+  var id=document.getElementById('nid');if(!id)return;
+  var v=id.value.trim();if(!v){$t('❌ أدخل المعرف','er');return}
+  var ti=document.getElementById('nti');
+  await api('/api/channels/add',{method:'POST',body:JSON.stringify({chat_id:v,title:ti?ti.value.trim():''})});
+  if(id)id.value='';if(ti)ti.value='';$t('✅ تمت الإضافة','ok');ld()
+}
+async function tg(id){if(!id)return;await api('/api/channels/toggle',{method:'POST',body:JSON.stringify({chat_id:id})});ld()}
+async function rm(id){if(!id)return;await api('/api/channels/remove',{method:'POST',body:JSON.stringify({chat_id:id})});$t('🗑 تم الحذف','ok');ld()}
+function es(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function ea(s){if(!s)return'';return s.replace(/'/g,"\\'")}
+
+/*══════════ INIT ══════════*/
+re();ld()
+</script>
+</body>
+</html>
