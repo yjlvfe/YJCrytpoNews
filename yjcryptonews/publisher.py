@@ -233,11 +233,17 @@ def build_post(item: dict, translated: dict) -> str:
         r'ملخص عربي\s*:?\s*', r'ملخص\s*:?\s*',
         r'العربي\s*:?\s*',
         r'رابط\s*:?\s*', r'Read Full Article\s*:?\s*', r'اقرأ المقال\s*:?\s*',
-        # تسريبات تعليمات الـ prompt
+        # تسريبات تعليمات الـ prompt (أسطر كاملة تبدأ بشرطة أو تحوي كلمات التعليمات)
         r'يرجى مراعاة[^.،\n]*', r'مع مراعاة استخدام[^.،\n]*',
         r'استخدام المصطلحات[^.،\n]*', r'المصطلحات المذكورة[^.،\n]*',
         r'ملاحظة\s*:?\s*', r'تنبيه\s*:?\s*',
         r'وفقاً للمصطلحات[^.،\n]*', r'حسب القاموس[^.،\n]*',
+        # تسريب تعليمات الترجمة (جمل كاملة)
+        r'[-•]\s*لا[ يُ]درج[^.\n]*', r'[-•]\s*لا يُسمح[^.\n]*',
+        r'[^.\n]*تعليمات أو ملاحظات حول الترجمة[^.\n]*\.?',
+        r'[^.\n]*النص المترجم هو للخبر فقط[^.\n]*\.?',
+        r'[^.\n]*لا تكتب[ها]? في ردك[^.\n]*\.?',
+        r'[^.\n]*في ردك[^.\n]*الترجمة[^.\n]*\.?',
     ]
     for pat in _artifacts:
         title_ar = _re.sub(pat, '', title_ar).strip()
@@ -267,6 +273,29 @@ def build_post(item: dict, translated: dict) -> str:
 
     title_ar = _fix_spacing(title_ar)
     body_ar = _fix_spacing(body_ar)
+
+    # إزالة الجُمل المكرّرة من الملخص (بعض النماذج تكرّر نفس الفقرة)
+    def _dedupe_sentences(text: str) -> str:
+        if not text:
+            return text
+        # نقسم على نهايات الجُمل مع الحفاظ على الفاصل
+        parts = _re.split(r'(?<=[.!؟])\s+', text)
+        seen = set()
+        out = []
+        for p in parts:
+            key = p.strip().rstrip('.!؟،').strip()
+            # نطبّع للمقارنة (نتجاهل الاختلافات البسيطة في المسافات)
+            norm = _re.sub(r'\s+', ' ', key)
+            if len(norm) < 12:  # جمل قصيرة جداً نتركها كما هي
+                out.append(p)
+                continue
+            if norm in seen:
+                continue
+            seen.add(norm)
+            out.append(p)
+        return ' '.join(out).strip()
+
+    body_ar = _dedupe_sentences(body_ar)
     
     # إزالة الحروف الصينية/الكورية/اليابانية
     _cjk = re.compile(

@@ -11,6 +11,7 @@ from yjcryptonews.lib.ai_translator import translate_articles
 from yjcryptonews.lib.ai_summarizer import summarize_articles
 from yjcryptonews.lib.ai_enricher import enrich_articles
 from yjcryptonews.lib.ai_rewriter import rewrite_articles
+from yjcryptonews.lib.article_fetcher import enrich_article_content
 from yjcryptonews import config
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class AIProcessingPipeline:
     """Orchestrates all AI processing steps"""
 
     def __init__(self):
+        self.enable_full_fetch = True   # جلب نص المقال الكامل من الرابط قبل الترجمة
         self.enable_translation = True
         self.enable_summarization = True
         self.enable_enrichment = config.enrichment.add_market_context or config.enrichment.add_historical_comparison or config.enrichment.add_related_coins
@@ -31,7 +33,20 @@ class AIProcessingPipeline:
 
         processed = articles
 
-        # Step 1: Translation (to Arabic)
+        # Step 0: Fetch FULL article text from URL (RSS often gives only a short stub).
+        # المترجم بعدها يقرأ المقال الكامل ويلخّصه ويترجمه → ينشر ملخصاً دقيقاً لا مقصوصاً.
+        if self.enable_full_fetch:
+            logger.info("Fetching full article content...")
+            import httpx
+            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                sem = asyncio.Semaphore(4)
+                async def _fetch_one(a):
+                    async with sem:
+                        await enrich_article_content(a, client)
+                await asyncio.gather(*[_fetch_one(a) for a in processed])
+            logger.info("Full article fetch complete")
+
+        # Step 1: Translation (to Arabic) — reads full content, summarizes to 3-5 lines
         if self.enable_translation:
             logger.info("Running translation...")
             processed = await translate_articles(processed)

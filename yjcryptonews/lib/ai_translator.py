@@ -163,10 +163,31 @@ class AITranslator:
             translated_title = parts[0]
             translated_content = " ".join(parts[1:4])  # skip key points/extra
         elif len(parts) == 1:
-            translated_title = parts[0]
-            translated_content = parts[0]
+            # نموذج رجّع كتلة واحدة بدون سطر فارغ — نفصل أول سطر (العنوان) عن الباقي (المتن)
+            block = parts[0]
+            lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+            if len(lines) >= 2:
+                translated_title = lines[0]
+                translated_content = " ".join(lines[1:])
+            else:
+                # سطر واحد فقط: نفصل العنوان عند أول نهاية جملة، والباقي متن
+                single = lines[0] if lines else block
+                m = re.search(r'[.!؟]\s', single)
+                if m and m.start() >= 15:
+                    translated_title = single[:m.start() + 1].strip()
+                    translated_content = single[m.start() + 1:].strip()
+                else:
+                    translated_title = single
+                    translated_content = single
         else:
             return None
+
+        # حماية: لو العنوان = المتن (تكرار)، اجعل العنوان أول جملة فقط
+        if translated_title and translated_title == translated_content:
+            m = re.search(r'[.!؟]\s', translated_content)
+            if m and m.start() >= 15:
+                translated_title = translated_content[:m.start() + 1].strip()
+                translated_content = translated_content[m.start() + 1:].strip() or translated_content
         
         # Final validation
         if not translated_content or len(translated_content) < 10:
