@@ -4,22 +4,6 @@ app:
   debug: true
   timezone: "UTC"
 
-database:
-  host: "postgres"
-  port: 5432
-  username: "yjcryptonews"
-  password: "yjcryptonews_dev"
-  name: "yjcryptonews"
-  pool_size: 10
-  max_overflow: 20
-
-redis:
-  host: "redis"
-  port: 6379
-  db: 0
-  password: ""
-  max_connections: 50
-
 ai:
   # Enable AI processing pipeline
   enable_processing: true
