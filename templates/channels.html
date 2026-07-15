@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📢 القنوات - CryptoBot</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: system-ui, sans-serif; background:#0f0f1a; color:#e0e0e0; padding:20px; }
+        .container { max-width: 800px; margin:0 auto; }
+        h1 { color:#f7931a; margin-bottom:20px; }
+        a { color:#4caf50; text-decoration:none; }
+        table { width:100%; border-collapse:collapse; }
+        th { text-align:right; color:#888; padding:8px; border-bottom:2px solid #2a2a4a; }
+        td { padding:8px; border-bottom:1px solid #222; }
+        .badge { padding:2px 10px; border-radius:12px; font-size:12px; }
+        .active { background:#1a3a1a; color:#4caf50; }
+        .inactive { background:#3a1a1a; color:#f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📢 القنوات</h1>
+        <a href="/">← العودة للوحة التحكم</a>
+        <table style="margin-top:20px;">
+            <tr><th>ID</th><th>الاسم</th><th>Chat ID</th><th>الحالة</th></tr>
+            {% for ch in channels %}
+            <tr>
+                <td>{{ ch.id }}</td>
+                <td>{{ ch.title or ch.username or "—" }}</td>
+                <td style="direction:ltr; text-align:left;">{{ ch.chat_id }}</td>
+                <td><span class="badge {{ 'active' if ch.is_active else 'inactive' }}">{{ '🟢 نشط' if ch.is_active else '🔴 متوقف' }}</span></td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
