@@ -53,3 +53,9 @@ Thumbs.db
 report_fix/
 static/
 
+
+# 📄 .md docs (except README/LICENSE)
+*.md
+!README.md
+!LICENSE
+!LICENSE.md
